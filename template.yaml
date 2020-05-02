@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Tells user when bins are due out and which colour
+Globals:
+  Function:
+    Timeout: 5
+
+Resources:
+  # SNS topic to notify user of bin day
+  BinDayNotifierTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+     TopicName: BinDayNotifierTopic
+     Subscription:
+      - Protocol: "email"
+        Endpoint: "YOUR_EMAIL_HERE"
+  # Lambda function to work out what bin is due out and publish a message
+  BinDayNotifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt BinDayNotifierRole.Arn
+      CodeUri: lambda
+      Handler: app.run
+      Runtime: python3.8
+      Environment:
+        Variables:
+          TOPIC_ARN: !Ref BinDayNotifierTopic
+          BUCKET_NAME: !Ref BinDayNotifierConfigBucket
+      Events:
+        BinDayNotifierScheduler:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 18 ? * TUE *)
+  # Stores which bin is due out
+  BinDayNotifierConfigBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: bin-day-notifier-config
+  # Role required for lambda function
+  BinDayNotifierRole:
+    Type: AWS::IAM::Role
+    Description: Allow BinDayNotifierFunction to publish to BinDayNotifierTopic
+    Properties:
+      # Allow role to be assumed by lambda functions
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+      # Allow publishing of messages to topic
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'SNS:Publish'
+                Resource: !Ref BinDayNotifierTopic
+          PolicyName: BinDayNotifierPublishPolicy
+        # Allow all access to config bucket
+        - PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 's3:*Object'
+                Resource: 
+                  !Join
+                    - ""
+                    - 
+                      - !GetAtt BinDayNotifierConfigBucket.Arn
+                      - "/*"
+          PolicyName: BinDayNotifierS3Policy
