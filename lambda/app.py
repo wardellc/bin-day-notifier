@@ -13,7 +13,7 @@ def run(event, context):
         # 1 = Tuesday, 3 = Thursday
         today = datetime.datetime.today().weekday()
         print("Today is {}. Where Monday = 0".format(today))
-        if 1 is 1:
+        if today is 1:
             # check for black/green bin
             try:
                 response = s3Client.get_object(Bucket=bucketName, Key="wednesday-bin.txt")
@@ -56,6 +56,34 @@ def run(event, context):
                         Subject="Bin notification",
                         Message="Green or black bins are due out tomorrow. Please populate 'wednesday-bin.txt' in S3 bucket ready for next week."
                     )
+                else:
+                    print("Unknown error occurred:", ex)
+                    snsClient.publish(
+                        TopicArn=topicARN,
+                        Subject="Bin notification",
+                        Message="Green or black bins are due out tomorrow. Error occurred, please check AWS account."
+                    )
+        elif today == 3:
+            # check for brown bin
+            try:
+                s3Client.get_object(Bucket=bucketName, Key="brown-bin.txt")
+
+                snsClient.publish(
+                    TopicArn=topicARN,
+                    Subject="Bin notification",
+                    Message="Brown bin is due out tomorrow."
+                )
+                print("Published message that bin is Brown")
+                
+                
+                s3Client.delete_object(Bucket=bucketName, Key="brown-bin.txt")
+
+                print("Deleted brown-bin.txt")
+            except ClientError as ex:
+                if ex.response['Error']['Code'] == 'NoSuchKey':
+                    print("brown-bin.txt does not exist. No brown bin this week.")
+                    s3Client.put_object(Bucket=bucketName, Key="brown-bin.txt", Body="Brown")
+
                 else:
                     print("Unknown error occurred:", ex)
                     snsClient.publish(

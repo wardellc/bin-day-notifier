@@ -30,7 +30,11 @@ Resources:
         BinDayNotifierScheduler:
           Type: Schedule
           Properties:
-            Schedule: cron(0 18 ? * TUE *)
+            Schedule: cron(0 16 ? * TUE *)
+        BrownBinDayNotifierScheduler:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 16 ? * THU *)
   # Stores which bin is due out
   BinDayNotifierConfigBucket:
     Type: AWS::S3::Bucket
